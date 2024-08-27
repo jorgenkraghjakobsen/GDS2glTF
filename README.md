@@ -4,6 +4,11 @@ This first version was built to create `.glTF` 3D files from SDK130 PDK `.gds` f
 
 Lot of the work is based on the gdsiistl repo: https://github.com/dteal/gdsiistl
 
+This is a fork of GDS to glTF converter 
+
+Layerstack is now read in from a file to support different technologys
+The directory 'layerstack' has layerstack for IHP sg13g2 and Skywater sky130
+
 Python libraries requirements:
 ```
 numpy
@@ -13,7 +18,7 @@ pygltflib
 ```
 
 ## Usage:
-`python3 gds2gltf.py file.gds`
+`python3 gds2gltf.py file.gds layerstack.txt` 
 
 Outputs a `file.gds.gltf` in the same folder as the original gds file
 
