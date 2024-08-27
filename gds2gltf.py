@@ -20,43 +20,81 @@ import sys # read command-line arguments
 import gdspy # open gds file
 import numpy as np # fast math on lots of points
 import triangle # triangulate polygons
-
-
+import time 
 
 import pygltflib
 from pygltflib import BufferFormat
 from pygltflib.validator import validate, summary
 
+def read_layerstack_from_file(filename):
+    """Reads a layerstack from a text file.
+
+    The text file should contain lines in the following format:
+
+    layer_name gds_number gds_datatype zmin zmax color_r color_g color_b color_a
+
+    Example:
+
+    substrate 245 0 -1 0 0.2 0.2 0.2 1.0
+    nwell 21 0 0.1 0.4 0.4 0.4 1.0 
+    ...
+
+    Args:
+        filename: The name of the text file containing the layerstack.
+
+    Returns:
+        A dictionary representing the layerstack.
+    """
+
+    layerstack = {}
+    with open(filename, 'r') as f:
+        for line in f:
+            line = line.strip()
+            if line and not line.startswith('#'):  # Skip comments
+                layer_name, gds_number, gds_datatype, zmin, zmax, color_r, color_g, color_b, color_a = line.split()
+                layerstack[(int(gds_number), 0)] = {
+                    'gds_number': int(gds_number),
+                    'gds_datatype': int(gds_datatype), 
+                    'name': layer_name,
+                    'zmin': float(zmin),
+                    'zmax': float(zmax),
+                    'color': [float(color_r), float(color_g), float(color_b), float(color_a)]
+                }
+    return layerstack
+
+
 # get the input file name
-if len(sys.argv) < 2: # sys.argv[0] is the name of the program
-    print("Error: need exactly one file as a command line argument.")
+if len(sys.argv) < 3:
+    print("Error: need exactly two files as command line arguments: GDSII file and layerstack file.")
     sys.exit(0)
+
 gdsii_file_path = sys.argv[1]
+layerstack_file_path = sys.argv[2]
 
 ########## CONFIGURATION (EDIT THIS PART) #####################################
 
 # choose which GDSII layers to use
-
-layerstack = {    
-    (235,4): {'name':'substrate', 'zmin':-2, 'zmax':0, 'color':[ 0.2, 0.2, 0.2, 1.0]},
-    (64,20): {'name':'nwell', 'zmin':-0.5, 'zmax':0.01, 'color':[ 0.4, 0.4, 0.4, 1.0]},    
-    # (65,44): {'name':'tap', 'zmin':0, 'zmax':0.1, 'color':[ 0.4, 0.4, 0.4, 1.0]},    
-    (65,20): {'name':'diff', 'zmin':-0.12, 'zmax':0.02, 'color':[ 0.9, 0.9, 0.9, 1.0]},    
-    (66,20): {'name':'poly', 'zmin':0, 'zmax':0.18, 'color':[ 0.75, 0.35, 0.46, 1.0]},    
-    (66,44): {'name':'licon', 'zmin':0, 'zmax':0.936, 'color':[ 0.2, 0.2, 0.2, 1.0]},    
-    (67,20): {'name':'li1', 'zmin':0.936, 'zmax':1.136, 'color':[ 1.0, 0.81, 0.55, 1.0]},    
-    (67,44): {'name':'mcon', 'zmin':1.011, 'zmax':1.376, 'color':[ 0.2, 0.2, 0.2, 1.0]},    
-    (68,20): {'name':'met1', 'zmin':1.376, 'zmax':1.736, 'color':[ 0.16, 0.38, 0.83, 1.0]},    
-    (68,44): {'name':'via', 'zmin':1.736,'zmax':2, 'color':[ 0.2, 0.2, 0.2, 1.0]},    
-    (69,20): {'name':'met2', 'zmin':2, 'zmax':2.36, 'color':[ 0.65, 0.75, 0.9, 1.0]},    
-    (69,44): {'name':'via2', 'zmin':2.36, 'zmax':2.786, 'color':[ 0.2, 0.2, 0.2, 1.0]},    
-    (70,20): {'name':'met3', 'zmin':2.786, 'zmax':3.631, 'color':[ 0.2, 0.62, 0.86, 1.0]},    
-    (70,44): {'name':'via3', 'zmin':3.631, 'zmax':4.0211, 'color':[ 0.2, 0.2, 0.2, 1.0]},    
-    (71,20): {'name':'met4', 'zmin':4.0211, 'zmax':4.8661, 'color':[ 0.15, 0.11, 0.38, 1.0]},    
-    (71,44): {'name':'via4', 'zmin':4.8661, 'zmax':5.371, 'color':[ 0.2, 0.2, 0.2, 1.0]},    
-    (72,20): {'name':'met5', 'zmin':5.371, 'zmax':6.6311, 'color':[ 0.4, 0.4, 0.4, 1.0]},
-    # (83,44): { 'zmin':0, 'zmax':0.1, 'name':'text'},
-}
+ 
+# layerstack = {    
+#     (235,4): {'name':'substrate', 'zmin':-2, 'zmax':0, 'color':[ 0.2, 0.2, 0.2, 1.0]},
+#     (64,20): {'name':'nwell', 'zmin':-0.5, 'zmax':0.01, 'color':[ 0.4, 0.4, 0.4, 1.0]},    
+#     # (65,44): {'name':'tap', 'zmin':0, 'zmax':0.1, 'color':[ 0.4, 0.4, 0.4, 1.0]},    
+#     (65,20): {'name':'diff', 'zmin':-0.12, 'zmax':0.02, 'color':[ 0.9, 0.9, 0.9, 1.0]},    
+#     (66,20): {'name':'poly', 'zmin':0, 'zmax':0.18, 'color':[ 0.75, 0.35, 0.46, 1.0]},    
+#     (66,44): {'name':'licon', 'zmin':0, 'zmax':0.936, 'color':[ 0.2, 0.2, 0.2, 1.0]},    
+#     (67,20): {'name':'li1', 'zmin':0.936, 'zmax':1.136, 'color':[ 1.0, 0.81, 0.55, 1.0]},    
+#     (67,44): {'name':'mcon', 'zmin':1.011, 'zmax':1.376, 'color':[ 0.2, 0.2, 0.2, 1.0]},    
+#     (68,20): {'name':'met1', 'zmin':1.376, 'zmax':1.736, 'color':[ 0.16, 0.38, 0.83, 1.0]},    
+#     (68,44): {'name':'via', 'zmin':1.736,'zmax':2, 'color':[ 0.2, 0.2, 0.2, 1.0]},    
+#     (69,20): {'name':'met2', 'zmin':2, 'zmax':2.36, 'color':[ 0.65, 0.75, 0.9, 1.0]},    
+#     (69,44): {'name':'via2', 'zmin':2.36, 'zmax':2.786, 'color':[ 0.2, 0.2, 0.2, 1.0]},    
+#     (70,20): {'name':'met3', 'zmin':2.786, 'zmax':3.631, 'color':[ 0.2, 0.62, 0.86, 1.0]},    
+#     (70,44): {'name':'via3', 'zmin':3.631, 'zmax':4.0211, 'color':[ 0.2, 0.2, 0.2, 1.0]},    
+#     (71,20): {'name':'met4', 'zmin':4.0211, 'zmax':4.8661, 'color':[ 0.15, 0.11, 0.38, 1.0]},    
+#     (71,44): {'name':'via4', 'zmin':4.8661, 'zmax':5.371, 'color':[ 0.2, 0.2, 0.2, 1.0]},    
+#     (72,20): {'name':'met5', 'zmin':5.371, 'zmax':6.6311, 'color':[ 0.4, 0.4, 0.4, 1.0]},
+#     # (83,44): { 'zmin':0, 'zmax':0.1, 'name':'text'},
+# }
 
 # layerstack = {    
 #     (235,4): {'name':'substrate', 'zmin':-1, 'zmax':0, 'color':[ 0.2, 0.2, 0.2, 1.0]},
@@ -80,11 +118,6 @@ layerstack = {
 # }
 
 
-
-
-
-
-
 ########## INPUT ##############################################################
 
 # First, the input file is read using the gdspy library, which interprets the
@@ -92,6 +125,10 @@ layerstack = {
 # See https://gdspy.readthedocs.io/en/stable/index.html for documentation.
 # Second, the boundaries of each shape (polygon or path) are extracted for
 # further processing.
+
+# Read the layerstack from the text file
+print('Reading layerstack file {}...'.format(layerstack_file_path))
+layerstack = read_layerstack_from_file(layerstack_file_path)
 
 print('Reading GDSII file {}...'.format(gdsii_file_path))
 gdsii = gdspy.GdsLibrary()
@@ -123,7 +160,8 @@ meshes_lib = {}
 
 for cell in gdsii.cells.values(): # loop through cells to read paths and polygons
     layers = {} # array to hold all geometry, sorted into layers
-
+    
+    start_time = time.time()
     print ("\nProcessing cell: ", cell.name)
     
     # $$$CONTEXT_INFO$$$ is a separate, non-standard compliant cell added
@@ -381,14 +419,19 @@ for cell in gdsii.cells.values(): # loop through cells to read paths and polygon
         gltf.meshes.append(mesh)
         meshes_lib[node_name] = len(gltf.meshes)-1
 
-       
-
-    
+    end_time = time.time()
+    elapsed_time = end_time - start_time
+    poly = len(cell.polygons)   
+    print(f"Function took {elapsed_time:.5f} seconds {poly} polygons ({(elapsed_time/poly*1000):.3f}) ")   
+ 
+    len(cell.polygons)
 gltf.set_binary_blob(binaryBlob)
 buffer.byteLength = len(binaryBlob)
 gltf.convert_buffers(BufferFormat.DATAURI)
 
-
+done_time = time.time()
+done_elapsed_time = done_time - end_time
+print(f"store took: {done_elapsed_time:.5f} seconds")
 
 
 
