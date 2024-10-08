@@ -427,8 +427,9 @@ for cell in gdsii.cells.values(): # loop through cells to read paths and polygon
 
     end_time = time.time()
     elapsed_time = end_time - start_time
-    poly = len(cell.polygons)   
-    print(f"Function took {elapsed_time:.5f} seconds {poly} polygons ({(elapsed_time/poly*1000):.3f}) ")   
+    poly = len(cell.polygons)  
+    if poly != 0 :
+        print(f"Function took {elapsed_time:.5f} seconds {poly} polygons ({(elapsed_time/poly*1000):.3f}) ")   
  
     len(cell.polygons)
 gltf.set_binary_blob(binaryBlob)
@@ -507,13 +508,13 @@ for layer in layerstack.values():
 scene.nodes.append(0)
 gltf.scene = 0
 
-# validate(gltf)  # will throw an error depending on the problem
-# summary(gltf) 
+##validate(gltf)  # will throw an error depending on the problem
+#summary(gltf) 
 
 
 print ("\nWriting glTF file:")
 gltf.save(gdsii_file_path + ".gltf")
 # gltf.save("output.gltf")
-export_glb(gdsii_file_path + ".gltf")
+#export_glb(gdsii_file_path + ".glb")
 
 print('Done.')

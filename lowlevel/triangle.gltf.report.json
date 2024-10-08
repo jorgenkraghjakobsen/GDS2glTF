@@ -1,0 +1,44 @@
+{
+    "uri": "triangle.gltf",
+    "mimeType": "model/gltf+json",
+    "validatorVersion": "2.0.0-dev.3.8",
+    "issues": {
+        "numErrors": 0,
+        "numWarnings": 0,
+        "numInfos": 1,
+        "numHints": 0,
+        "messages": [
+            {
+                "code": "UNUSED_OBJECT",
+                "message": "This object may be unused.",
+                "severity": 2,
+                "pointer": "/accessors/0"
+            }
+        ],
+        "truncated": false
+    },
+    "info": {
+        "version": "2.0",
+        "generator": "pygltflib@v1.16.2",
+        "resources": [
+            {
+                "pointer": "/buffers/0",
+                "mimeType": "application/gltf-buffer",
+                "storage": "data-uri",
+                "byteLength": 44
+            }
+        ],
+        "animationCount": 0,
+        "materialCount": 0,
+        "hasMorphTargets": false,
+        "hasSkins": false,
+        "hasTextures": false,
+        "hasDefaultScene": false,
+        "drawCallCount": 1,
+        "totalVertexCount": 3,
+        "totalTriangleCount": 1,
+        "maxUVs": 0,
+        "maxInfluences": 0,
+        "maxAttributes": 1
+    }
+}
