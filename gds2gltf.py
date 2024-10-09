@@ -53,7 +53,7 @@ def read_layerstack_from_file(filename):
             line = line.strip()
             if line and not line.startswith('#'):  # Skip comments
                 layer_name, gds_number, gds_datatype, zmin, zmax, color_r, color_g, color_b, color_a = line.split()
-                layerstack[(int(gds_number), 0)] = {
+                layerstack[(int(gds_number), int(gds_datatype))] = {
                     'gds_number': int(gds_number),
                     'gds_datatype': int(gds_datatype), 
                     'name': layer_name,
@@ -61,6 +61,16 @@ def read_layerstack_from_file(filename):
                     'zmax': float(zmax),
                     'color': [float(color_r), float(color_g), float(color_b), float(color_a)]
                 }
+    # Append default if not found
+    layerstack[(-1, 0)] = {
+        'gds_number': -1,
+        'gds_datatype': 0, 
+        'name': 'default',
+        'zmin': 0.1,
+        'zmax': 1,
+        'color': [0.5, 0.5, 0.5, 1.0]
+    }
+    print(layerstack)
     return layerstack
 
 def export_glb(gltf_filename):
@@ -185,26 +195,43 @@ for cell in gdsii.cells.values(): # loop through cells to read paths and polygon
         if not lnum in layerstack.keys():
             continue
 
-        layers[lnum] = [] if not lnum in layers else layers[lnum]
+        # layers[lnum] = [] if not lnum in layers else layers[lnum]
         # add paths (converted to polygons) that layer
-        for poly in path.get_polygons():
-            layers[lnum].append((poly, None, False))
+        # for poly in path.get_polygons():
+        #     layers[lnum].append((poly, None, False))
 
     print ("\tpolygons loop. total polygons:" , len(cell.polygons))
     # loop through polygons (and boxes) in cell
-    for polygon in cell.polygons:
-        lnum = (polygon.layers[0],polygon.datatypes[0]) # same as before...
+    # for polygon in cell.polygons:
+    #     lnum = (polygon.layers[0],polygon.datatypes[0]) # same as before...
 
-        if not lnum in layerstack.keys():
+    #     if not lnum in layerstack.keys():
+    #         continue
+
+    #     layers[lnum] = [] if not lnum in layers else layers[lnum]
+    #     for poly in polygon.polygons:
+    #         layers[lnum].append((poly, None, False))
+
+    # Loop through each polygon in the cell
+    for polygon in cell.polygons:
+        # Get the first layer and datatype of the polygon
+        layer_and_type = (polygon.layers[0], polygon.datatypes[0])
+
+        # If the layer-datatype pair is not in the layerstack, skip to the next polygon
+        if layer_and_type not in layerstack:
+            # layerstack[layer_and_type] = layerstack[(-1, 0)]
+            print(f"Layer {layer_and_type} not found in layerstack. Skipping...")
             continue
 
-        layers[lnum] = [] if not lnum in layers else layers[lnum]
-        for poly in polygon.polygons:
-            layers[lnum].append((poly, None, False))
+        # Ensure the 'layers' dictionary has an entry for the current layer-datatype pair
+        if layer_and_type not in layers:
+            layers[layer_and_type] = []
 
+        # Loop through each individual polygon in the polygon object
+        for sub_polygon in polygon.polygons:
+            # Append the sub-polygon to the layers dictionary with placeholder values
+            layers[layer_and_type].append((sub_polygon, None, False))
 
-    
-    
     """
     At this point, "layers" is a Python dictionary structured as follows:
 
@@ -236,10 +263,10 @@ for cell in gdsii.cells.values(): # loop through cells to read paths and polygon
 
     
     num_triangles = {} # will store the number of triangles for each layer
-
+    print(f"\t{len(layers)} layers found")
     # loop through all layers
     for layer_number, polygons in layers.items():
-
+        # print(f"\tLayer {layer_number} has {len(polygons)} polygons")
         # but skip layer if it won't be exported
         if not layer_number in layerstack.keys():
             continue
@@ -324,8 +351,6 @@ for cell in gdsii.cells.values(): # loop through cells to read paths and polygon
                                         len(triangles['triangles'])*2
             polygons[index] = (polygon, triangles, clockwise)
 
-
-
         # glTF Mesh creation
 
         zmin = layerstack[layer_number]['zmin']
@@ -408,8 +433,9 @@ for cell in gdsii.cells.values(): # loop through cells to read paths and polygon
         accessor2.type = pygltflib.VEC3
         accessor2.max = gltf_positions.max(axis=0).tolist()
         accessor2.min = gltf_positions.min(axis=0).tolist()
-        gltf.accessors.append(accessor2)
 
+        gltf.accessors.append(accessor2)
+        # print("BBLOB: " + positions_binary_blob)
         binaryBlob = binaryBlob + positions_binary_blob
 
         mesh = pygltflib.Mesh()
@@ -427,20 +453,32 @@ for cell in gdsii.cells.values(): # loop through cells to read paths and polygon
 
     end_time = time.time()
     elapsed_time = end_time - start_time
-    poly = len(cell.polygons)  
+    poly = len(cell.polygons)
+
     if poly != 0 :
         print(f"Function took {elapsed_time:.5f} seconds {poly} polygons ({(elapsed_time/poly*1000):.3f}) ")   
- 
+    else:
+        Warning("No polygons found in cell: " + cell.name)
+        print("Continue? (y/n)")
+
+        if input() != 'y':
+            break
+
     len(cell.polygons)
+print('stuck here')
+
 gltf.set_binary_blob(binaryBlob)
+print(f"Binary blob size: {len(binaryBlob)} bytes")
+# print(f"Total triangles: {sum(num_triangles.values())}")
+# print(f"Binary data: {len(binaryBlob)} bytes")
+# print(f"Layernames: {layerstack.keys()}")
+# print(layerstack)
 buffer.byteLength = len(binaryBlob)
 gltf.convert_buffers(BufferFormat.DATAURI)
 
 done_time = time.time()
 done_elapsed_time = done_time - end_time
 print(f"store took: {done_elapsed_time:.5f} seconds")
-
-
 
 def add_cell_node(c, parent_node, prefix):
     for ref in c.references:
@@ -453,7 +491,7 @@ def add_cell_node(c, parent_node, prefix):
         else:
             instance_node.name = ref.properties[61]
             
-        print(prefix, instance_node.name, "(", ref.ref_cell.name + ")")
+        #print(prefix, instance_node.name, "(", ref.ref_cell.name + ")")
         instance_node.translation = [ref.origin[0], ref.origin[1], 0]
         if(ref.rotation!=None):
             if(ref.rotation==90):
