@@ -61,16 +61,7 @@ def read_layerstack_from_file(filename):
                     'zmax': float(zmax),
                     'color': [float(color_r), float(color_g), float(color_b), float(color_a)]
                 }
-    # Append default if not found
-    layerstack[(-1, 0)] = {
-        'gds_number': -1,
-        'gds_datatype': 0, 
-        'name': 'default',
-        'zmin': 0.1,
-        'zmax': 1,
-        'color': [0.5, 0.5, 0.5, 1.0]
-    }
-    print(layerstack)
+    
     return layerstack
 
 def export_glb(gltf_filename):
@@ -201,26 +192,13 @@ for cell in gdsii.cells.values(): # loop through cells to read paths and polygon
         #     layers[lnum].append((poly, None, False))
 
     print ("\tpolygons loop. total polygons:" , len(cell.polygons))
-    # loop through polygons (and boxes) in cell
-    # for polygon in cell.polygons:
-    #     lnum = (polygon.layers[0],polygon.datatypes[0]) # same as before...
 
-    #     if not lnum in layerstack.keys():
-    #         continue
-
-    #     layers[lnum] = [] if not lnum in layers else layers[lnum]
-    #     for poly in polygon.polygons:
-    #         layers[lnum].append((poly, None, False))
-
-    # Loop through each polygon in the cell
     for polygon in cell.polygons:
         # Get the first layer and datatype of the polygon
         layer_and_type = (polygon.layers[0], polygon.datatypes[0])
 
         # If the layer-datatype pair is not in the layerstack, skip to the next polygon
         if layer_and_type not in layerstack:
-            # layerstack[layer_and_type] = layerstack[(-1, 0)]
-            print(f"Layer {layer_and_type} not found in layerstack. Skipping...")
             continue
 
         # Ensure the 'layers' dictionary has an entry for the current layer-datatype pair
@@ -266,6 +244,8 @@ for cell in gdsii.cells.values(): # loop through cells to read paths and polygon
     print(f"\t{len(layers)} layers found")
     # loop through all layers
     for layer_number, polygons in layers.items():
+        print(f"\tLayer {layer_number} has {len(polygons)} polygons, name: {layerstack[layer_number]['name']}")
+        # print(f"\tLayer name: {layerstack[layer_number]['name']}")
         # print(f"\tLayer {layer_number} has {len(polygons)} polygons")
         # but skip layer if it won't be exported
         if not layer_number in layerstack.keys():
@@ -459,20 +439,12 @@ for cell in gdsii.cells.values(): # loop through cells to read paths and polygon
         print(f"Function took {elapsed_time:.5f} seconds {poly} polygons ({(elapsed_time/poly*1000):.3f}) ")   
     else:
         Warning("No polygons found in cell: " + cell.name)
-        print("Continue? (y/n)")
-
-        if input() != 'y':
-            break
 
     len(cell.polygons)
-print('stuck here')
 
 gltf.set_binary_blob(binaryBlob)
 print(f"Binary blob size: {len(binaryBlob)} bytes")
-# print(f"Total triangles: {sum(num_triangles.values())}")
-# print(f"Binary data: {len(binaryBlob)} bytes")
-# print(f"Layernames: {layerstack.keys()}")
-# print(layerstack)
+
 buffer.byteLength = len(binaryBlob)
 gltf.convert_buffers(BufferFormat.DATAURI)
 
