@@ -409,7 +409,7 @@ def process_cell(cell):
         indices_binary_blob = gltf_indices.astype(np.uint32).flatten().tobytes() #triangles.flatten().tobytes()
         positions_binary_blob = gltf_positions.astype(np.float32).tobytes() #points.tobytes()
 
-        node_names.append(node_name)
+        node_names.append(cell.name)
         curIndices.append(indices_binary_blob)
         curPositions.append(positions_binary_blob)
         layer_numbers.append(layer_number)
@@ -477,13 +477,14 @@ def process_cell(cell):
     else:
         Warning("No polygons found in cell: " + cell.name)
 
-    return node_names, curIndices, curPositions, layer_numbers, cur_gltf_indices, cur_gltf_positions
+    return (node_names, curIndices, curPositions, layer_numbers, cur_gltf_indices, cur_gltf_positions)
 
 binaryBlob = bytes()
 meshes_lib = {}
 end_time = None
 
 if __name__ == "__main__":
+    t_start = time.time()
     if len(sys.argv) < 3:
         print("Error: need exactly two files as command line arguments: GDSII file and layerstack file.")
         sys.exit(0)
@@ -514,20 +515,19 @@ if __name__ == "__main__":
         gltf.materials.append(mainMaterial)
 
     print('Extracting polygons...')
-
-
-
     num_workers = multiprocessing.cpu_count()
+    print(num_workers)
+    
+    with multiprocessing.Pool(num_workers) as pool:
+        results = pool.map(process_cell, gdsii.cells.values())
 
-    for cell in gdsii.cells.values(): # loop through cells to read paths and polygons
-        names, indices, positions, layer_numbers, gltf_indicies, gltf_positions = process_cell(cell)
-        # process_cell(cell)
-        # print(f"Cell {cell.name} has {len(indices)} layers")
+    end_time = time.time()
+
+    for result in results: # loop through cells to read paths and polygons
+        names, indices, positions, layer_numbers, gltf_indicies, gltf_positions = result
+        print(f"Processing {len(names)} nodes")
         print(len(names), len(indices), len(positions), len(layer_numbers), len(gltf_indicies), len(gltf_positions))
-        # print(names, indices, positions, layer_numbers, gltf_indicies, gltf_positions)
-        for i in range(len(indices)):
-            # binaryBlob = binaryBlob + indices[i] + positions[i]
-            
+        for i in range(len(indices)):            
             bufferView1 = pygltflib.BufferView()
             bufferView1.buffer = 0
             bufferView1.byteOffset = len(binaryBlob)
@@ -576,7 +576,7 @@ if __name__ == "__main__":
             mesh.primitives.append(mesh_primitive)
 
             gltf.meshes.append(mesh)
-            meshes_lib[cell.name + "_" + layerstack[layer_numbers[i]]['name']] = len(gltf.meshes)-1
+            meshes_lib[names[i] + "_" + layerstack[layer_numbers[i]]['name']] = len(gltf.meshes)-1
 
     gltf.set_binary_blob(binaryBlob)
     print(f"Binary blob size: {len(binaryBlob)} bytes")
@@ -622,3 +622,5 @@ if __name__ == "__main__":
     #export_glb(gdsii_file_path + ".glb")
 
     print('Done.')
+    t_end = time.time()
+    print(f"Total time: {t_end - t_start:.5f} seconds")
