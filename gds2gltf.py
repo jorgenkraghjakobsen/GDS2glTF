@@ -525,8 +525,7 @@ if __name__ == "__main__":
 
     for result in results: # loop through cells to read paths and polygons
         names, indices, positions, layer_numbers, gltf_indicies, gltf_positions = result
-        print(f"Processing {len(names)} nodes")
-        print(len(names), len(indices), len(positions), len(layer_numbers), len(gltf_indicies), len(gltf_positions))
+
         for i in range(len(indices)):            
             bufferView1 = pygltflib.BufferView()
             bufferView1.buffer = 0
