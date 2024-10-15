@@ -36,6 +36,8 @@ from pygltflib.utils import gltf2glb
 
 import multiprocessing
 
+multithread = True
+
 def read_layerstack_from_file(filename):
     """Reads a layerstack from a text file.
 
@@ -515,12 +517,14 @@ if __name__ == "__main__":
         gltf.materials.append(mainMaterial)
 
     print('Extracting polygons...')
-    num_workers = multiprocessing.cpu_count()
-    print(num_workers)
-    
-    with multiprocessing.Pool(num_workers) as pool:
-        results = pool.map(process_cell, gdsii.cells.values())
-
+    if multithread:
+        num_workers = multiprocessing.cpu_count()    
+        with multiprocessing.Pool(num_workers) as pool:
+            results = pool.map(process_cell, gdsii.cells.values())
+    else:
+        results = []
+        for cell in gdsii.cells.values():
+            results.append(process_cell(cell))
     end_time = time.time()
 
     for result in results: # loop through cells to read paths and polygons
