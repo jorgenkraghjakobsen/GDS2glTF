@@ -483,16 +483,23 @@ def process_cell(cell):
     return (node_names, curIndices, curPositions, layer_numbers, cur_gltf_indices, cur_gltf_positions)
 
 def get_unique_materials(cell):
-    materials = []
+    materials = set()  # Use a set for faster lookup
+    
+    # Process paths
     for path in cell.paths:
         layer_and_type = (path.layers[0], path.datatypes[0])
         if layer_and_type not in materials:
-            materials.append(layer_and_type)
+            materials.add(layer_and_type)
+    
+    # Process polygons
     for polygon in cell.polygons:
         layer_and_type = (polygon.layers[0], polygon.datatypes[0])
         if layer_and_type not in materials:
-            materials.append(layer_and_type)
-    return materials
+            materials.add(layer_and_type)
+        
+    # Convert the set back to a list if needed (optional)
+    return list(materials)
+
 
 binaryBlob = bytes()
 meshes_lib = {}
@@ -545,15 +552,15 @@ if __name__ == "__main__":
         best_match = 0
 
         for ls in layerstacks:
-            if multithread:
-                num_workers = multiprocessing.cpu_count()
-                print(f"Using {num_workers} workers")
-                with multiprocessing.Pool(num_workers) as pool:
-                    results = pool.map(get_unique_materials, gdsii.cells.values())
-            else:
-                results = []
-                for cell in gdsii.cells.values():
-                    results.append(get_unique_materials(cell))
+            # if multithread:
+            #     num_workers = multiprocessing.cpu_count()
+            #     print(f"Using {num_workers} workers to get unique materials")
+            #     with multiprocessing.Pool(num_workers) as pool:
+            #         results = pool.map(get_unique_materials, gdsii.cells.values())
+            # else:
+            results = []
+            for cell in gdsii.cells.values():
+                results.append(get_unique_materials(cell))
             
             # Get unique materials from all cells
             unique_materials = []
@@ -561,6 +568,7 @@ if __name__ == "__main__":
                 for material in result:
                     if material not in unique_materials:
                         unique_materials.append(material)
+
             nMatches = 0
             for material in unique_materials:
                 if (material[0], material[1]) in ls:
