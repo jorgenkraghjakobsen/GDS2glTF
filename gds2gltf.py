@@ -499,7 +499,8 @@ meshes_lib = {}
 end_time = None
 look_for_places = [
     "/usr/local/share/gdst",
-    "."
+    ".",
+    "./layerstack"
 ]
 
 if __name__ == "__main__":
